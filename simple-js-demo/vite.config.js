@@ -1,0 +1,50 @@
+import { logger } from './logger.js';
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+import { copyFileSync, mkdirSync, existsSync } from 'fs';
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '@types': resolve(__dirname, 'src'),
+    },
+    conditions: ['import', 'module', 'browser', 'default'],
+  },
+  server: {
+    port: 5173,
+    strictPort: false,
+    fs: {
+      strict: false,
+      // Allow serving files from the packages directory
+      allow: ['..'],
+    },
+  },
+  plugins: [
+    {
+      name: 'copy-wasm-files',
+      buildStart() {
+        // Copy WASM file from core package to public directory
+        const wasmSource = resolve(
+          __dirname,
+          'node_modules/@mindfiredigital/pivothead/dist/wasm/csvParser.wasm'
+        );
+        const wasmDest = resolve(__dirname, 'public/wasm/csvParser.wasm');
+        const wasmDir = resolve(__dirname, 'public/wasm');
+
+        // Create directory if it doesn't exist
+        if (!existsSync(wasmDir)) {
+          mkdirSync(wasmDir, { recursive: true });
+        }
+
+        // Copy WASM file if source exists
+        if (existsSync(wasmSource)) {
+          copyFileSync(wasmSource, wasmDest);
+          logger.info('✅ Copied WASM file to public/wasm/');
+        } else {
+          logger.warn('⚠️ WASM file not found at:', wasmSource);
+          logger.warn('Run "pnpm build:wasm" in packages/core to generate it');
+        }
+      },
+    },
+  ],
+});
